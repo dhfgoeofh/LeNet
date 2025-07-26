@@ -6,9 +6,9 @@ from tensorflow.keras.datasets import mnist
 import os
 
 # 1. 모델 로딩
-model_mlp_sgd = tf.keras.models.load_model("mlp_sgd_model.h5")
-model_mlp_adam = tf.keras.models.load_model("mlp_adam_model.h5")
-model_cnn = tf.keras.models.load_model("cnn_mnist_model.h5")
+model_mlp_sgd = tf.keras.models.load_model("models/mlp_sgd_model.h5", compile=False)
+model_mlp_adam = tf.keras.models.load_model("models/mlp_adam_model.h5", compile=False)
+model_cnn = tf.keras.models.load_model("models/cnn_mnist_model.h5", compile=False)
 
 # 2. MNIST 데이터 로딩 (예시 시각화용)
 (_, _), (x_test, y_test) = mnist.load_data()
@@ -47,9 +47,10 @@ def show_test_predictions():
     plt.show()
 
 # 4. 손글씨 입력을 통한 예측
-def predict_drawn_image():
-    drawing = np.zeros((280, 280), dtype=np.uint8)
-    drawing_copy = drawing.copy()
+def predict_drawn_image(num_digits=5):
+    canvas_width = 280 * num_digits
+    canvas_height = 280
+    drawing = np.zeros((canvas_height, canvas_width), dtype=np.uint8)
     drawing_flag = False
 
     def draw(event, x, y, flags, param):
@@ -57,54 +58,59 @@ def predict_drawn_image():
         if event == cv2.EVENT_LBUTTONDOWN:
             drawing_flag = True
         elif event == cv2.EVENT_MOUSEMOVE and drawing_flag:
-            cv2.circle(drawing, (x, y), 10, (255,), -1)
+            cv2.circle(drawing, (x, y), 6, (255,), -1)
         elif event == cv2.EVENT_LBUTTONUP:
             drawing_flag = False
-
-    cv2.namedWindow("Draw a Digit (Press ESC to Predict)")
-    cv2.setMouseCallback("Draw a Digit (Press ESC to Predict)", draw)
+    
+    cv2.namedWindow("Draw Digits (Left to Right, ESC to Predict)")
+    cv2.setMouseCallback("Draw Digits (Left to Right, ESC to Predict)", draw)
 
     while True:
-        cv2.imshow("Draw a Digit (Press ESC to Predict)", drawing)
+        # 복사본에 가이드라인 추가
+        display_img = drawing.copy()
+        step = canvas_width // num_digits
+        for i in range(1, num_digits):
+            x = i * step
+            cv2.line(display_img, (x, 0), (x, canvas_height), (127,), 2)
+            cv2.putText(display_img, f'{i+1}', (x + 10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (127,), 2)
+
+        cv2.imshow("Draw Digits (Left to Right, ESC to Predict)", display_img)
         key = cv2.waitKey(1)
         if key == 27:  # ESC
             break
 
     cv2.destroyAllWindows()
 
-    # 전처리
-    img = cv2.resize(drawing, (28, 28))
-    img_norm = img.astype("float32") / 255.0
-    img_input_flat = (1.0 - img_norm).reshape(1, 784)
-    img_input_cnn = (1.0 - img_norm).reshape(1, 28, 28, 1)
+    # 분할 및 예측
+    plt.figure(figsize=(num_digits * 2.5, 3))
+    for i in range(num_digits):
+        digit_img = drawing[:, i * step:(i + 1) * step]
+        
+        img = cv2.resize(digit_img, (28, 28))
+        img_norm = img.astype("float32") / 255.0
+        img_input_flat = (1.0 - img_norm).reshape(1, 784)
+        img_input_cnn = (1.0 - img_norm).reshape(1, 28, 28, 1)
 
-    pred_sgd = model_mlp_sgd.predict(img_input_flat)
-    pred_adam = model_mlp_adam.predict(img_input_flat)
-    pred_cnn = model_cnn.predict(img_input_cnn)
+        pred_sgd = np.argmax(model_mlp_sgd.predict(img_input_flat))
+        pred_adam = np.argmax(model_mlp_adam.predict(img_input_flat))
+        pred_cnn = np.argmax(model_cnn.predict(img_input_cnn))
 
-    def plot_bar(pred, title):
-        plt.bar(range(10), pred[0])
-        plt.xticks(range(10))
-        plt.title(f"{title}: {np.argmax(pred)} (conf: {np.max(pred):.2f})")
+        # 시각화
+        plt.subplot(2, num_digits, i + 1)
+        plt.imshow(img, cmap='gray')
+        plt.title(f"#{i+1}")
+        plt.axis('off')
 
-    # 시각화
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 4, 1)
-    plt.imshow(img, cmap='gray')
-    plt.title("Input Image")
-    plt.axis('off')
+        plt.subplot(2, num_digits, num_digits + i + 1)
+        plt.axis('off')
+        plt.text(0.1, 0.6,
+                 f"SGD: {pred_sgd}\nAdam: {pred_adam}\nCNN: {pred_cnn}",
+                 fontsize=10)
 
-    plt.subplot(1, 4, 2)
-    plot_bar(pred_sgd, "MLP-SGD")
-
-    plt.subplot(1, 4, 3)
-    plot_bar(pred_adam, "MLP-Adam")
-
-    plt.subplot(1, 4, 4)
-    plot_bar(pred_cnn, "CNN")
-
+    plt.suptitle("Predictions per Digit (Drawn Left→Right)", fontsize=14)
     plt.tight_layout()
     plt.show()
+
 
 # 실행
 if __name__ == "__main__":

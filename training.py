@@ -32,7 +32,7 @@ mlp_sgd.compile(loss='mse', optimizer=tf.keras.optimizers.SGD(0.01), metrics=['a
 mlp_sgd.fit(x_train_flat, y_train_cat, epochs=20, batch_size=128, verbose=1)
 loss_sgd, acc_sgd = mlp_sgd.evaluate(x_test_flat, y_test_cat)
 print("MLP-SGD-MSE Test Accuracy:", acc_sgd)
-mlp_sgd.save("models/mlp_sgd_model.keras")
+mlp_sgd.save("models/mlp_sgd_model.h5")
 
 # ------------------------------
 # 3. MLP with Adam
@@ -45,7 +45,7 @@ mlp_adam.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(0.001), metrics=
 mlp_adam.fit(x_train_flat, y_train_cat, epochs=20, batch_size=128, verbose=1)
 loss_adam, acc_adam = mlp_adam.evaluate(x_test_flat, y_test_cat)
 print("MLP-Adam-MSE Test Accuracy:", acc_adam)
-mlp_adam.save("models/mlp_adam_model.keras")
+mlp_adam.save("models/mlp_adam_model.h5")
 
 # ------------------------------
 # 4. CNN with Adam (LeNet-style)
@@ -64,4 +64,4 @@ cnn.compile(loss='categorical_crossentropy', optimizer=tf.keras.optimizers.Adam(
 cnn.fit(x_train_cnn, y_train_cat, epochs=30, batch_size=128, verbose=1)
 loss_cnn, acc_cnn = cnn.evaluate(x_test_cnn, y_test_cat)
 print("CNN-LeNet5 Test Accuracy:", acc_cnn)
-cnn.save("models/cnn_mnist_model.keras")
+cnn.save("models/cnn_mnist_model.h5")
